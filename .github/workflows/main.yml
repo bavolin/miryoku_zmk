@@ -356,16 +356,26 @@ jobs:
           echo "::endgroup::"
 
           echo "::group::copy"
-          for extension in 'uf2' 'bin' 'hex' 'elf'
-          do
-            file="${GITHUB_WORKSPACE}/zmk/app/build/zephyr/zmk.$extension"
-            if [ -f "$file" ]
-            then
-              cp "$file" "${{ steps.main.outputs.artifact_dir }}"
-              test "$MIRYOKU_DEBUG" = 'MIRYOKU_DEBUG_TRUE' || break
+          # Figure out which half we're building (left/right/dongle) from the first token of the shield
+          SPLIT="$(echo '${{ matrix.shield }}' | awk '{print $1}' | sed -E 's/.*_(left|right|dongle).*/\1/')"
+          [ -z "$SPLIT" ] && SPLIT="unknown"
+          
+          # Human-friendly name parts
+          ALPHAS="${{ matrix.alphas }}"
+          [ -z "$ALPHAS" ] || [ "$ALPHAS" = "default" ] && ALPHAS="default"
+          OUT_BASE="corne_miryoku_${ALPHAS}_${SPLIT}"
+          
+          # Copy firmware files with nice names (if they exist)
+          for ext in uf2 bin hex elf; do
+            src="${GITHUB_WORKSPACE}/zmk/app/build/zephyr/zmk.${ext}"
+            if [ -f "$src" ]; then
+              cp "$src" "${{ steps.main.outputs.artifact_dir }}/${OUT_BASE}.${ext}"
             fi
           done
-          test "$MIRYOKU_DEBUG" = 'MIRYOKU_DEBUG_TRUE' && cp "${GITHUB_WORKSPACE}/zmk/app/build/zephyr/.config" "${{ steps.main.outputs.artifact_dir }}"
+          
+          # Always include the final resolved Kconfig so you can verify flags later
+          cp "${GITHUB_WORKSPACE}/zmk/app/build/zephyr/.config" \
+             "${{ steps.main.outputs.artifact_dir }}/kconfig_${{ matrix.board }}_${SPLIT}.txt" || true
           echo "::endgroup::"
       - name: upload
         uses: actions/upload-artifact@v4
