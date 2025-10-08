@@ -325,8 +325,13 @@ jobs:
           EX_UNAVAILABLE='69'
           EX_DATAERR='65'
           cd "${GITHUB_WORKSPACE}/zmk/app"
+          # Only add Studio-over-USB on the left/central half
+          SNIP=""
+          case "${{ matrix.shield }}" in
+            corne_left*) SNIP="-DSNIPPET=studio-rpc-usb-uart" ;;
+          esac
           {
-            west $west_debug build -b ${{ matrix.board }} $west_build_debug -- ${{ steps.main.outputs.shield_arg }} ${{ steps.main.outputs.modules_arg }} -DZMK_CONFIG="${GITHUB_WORKSPACE}/miryoku_zmk/config" -DSNIPPET=studio-rpc-usb-uart ||
+            west $west_debug build -b ${{ matrix.board }} $west_build_debug -- ${{ steps.main.outputs.shield_arg }} ${{ steps.main.outputs.modules_arg }} -DZMK_CONFIG="${GITHUB_WORKSPACE}/miryoku_zmk/config" $SNIP ||
             echo "$build_failed_message $?." ;
           } 2>&1 | tee "$log"
           if grep -q 'Invalid BOARD; see above.' "$log"
